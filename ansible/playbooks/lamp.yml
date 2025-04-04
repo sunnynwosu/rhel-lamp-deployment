@@ -1,0 +1,7 @@
+---
+- name: Deploy LAMP Stack with SELinux on RHEL
+  hosts: rhel_instances
+  vars_files:
+    - ../vault.yml
+  roles:
+    - ../roles/lamp

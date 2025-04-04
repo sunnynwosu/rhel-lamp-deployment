@@ -1,0 +1,54 @@
+---
+# tasks file for ansible/roles/lamp
+
+- name: Update all packages
+  ansible.builtin.dnf:
+    name: '*'
+    state: latest
+  register: update_result
+  failed_when: update_result.rc != 0
+
+- name: Install LAMP packages
+  ansible.builtin.dnf:
+    name: "{{ lamp_packages }}"
+    state: present
+  vars:
+    lamp_packages:
+      - httpd
+      - mariadb-server
+      - php
+      - php-mysqlnd
+
+- name: Ensure services are running and enabled
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - httpd
+    - mariadb
+
+- name: Enforce SELinux
+  command: setenforce 1
+  changed_when: false
+
+- name: Apply SELinux context to web directory
+  sefcontext:
+    target: '/var/www/html(/.*)?'
+    setype: httpd_sys_content_t
+    state: present
+  notify: Apply SELinux context
+
+- name: Deploy dynamic PHP page
+  template:
+    src: index.php.j2
+    dest: /var/www/html/index.php
+    mode: '0644'
+  notify: Restart Apache
+
+- name: Ensure MySQL is secure
+  mysql_user:
+    name: root
+    password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    state: present
